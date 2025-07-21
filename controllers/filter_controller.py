@@ -1,6 +1,7 @@
 from flask import request, jsonify
 from services.s3_service import S3Service
 from filters.filter_engine import FilterEngine
+from datetime import datetime
 
 class FilterController:
     def __init__(self):
@@ -15,6 +16,10 @@ class FilterController:
             sql_condition = payload.get("filters", "")
             target_filename = payload["target_filename"]
 
+            # Generate timestamp string
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            target_filename_with_ts = f"{target_filename}_{timestamp}"
+
             # Step 1: Read data
             df = self.s3_service.read_csv(bucket, file_key)
 
@@ -24,21 +29,20 @@ class FilterController:
 
             # Step 3: Upload filtered and dropped files
             base_path = "processed"
-            filtered_key = f"{base_path}/{target_filename}.csv"
-            dropped_key = f"{base_path}/{target_filename}_dropped.csv"
+            filtered_key = f"{base_path}/{target_filename_with_ts}.csv"
+            dropped_key = f"{base_path}/{target_filename_with_ts}_dropped.csv"
 
-            # 🟡 Upload the DataFrames to S3 (missing earlier!)
             self.s3_service.upload_csv(filtered_df, bucket, filtered_key)
             self.s3_service.upload_csv(dropped_df, bucket, dropped_key)
 
             return jsonify({
                 "filtered": {
-                    "fileName": f"{target_filename}.csv",
+                    "fileName": f"{target_filename_with_ts}.csv",
                     "filePath": filtered_key,
                     "bucket": bucket
                 },
                 "dropped": {
-                    "fileName": f"{target_filename}_dropped.csv",
+                    "fileName": f"{target_filename_with_ts}_dropped.csv",
                     "filePath": dropped_key,
                     "bucket": bucket
                 }
